@@ -57,7 +57,19 @@ mkValidator p _ _ ctx = traceIfFalse "Sending Wallet Sig Missing" chkSig &&
         info = scriptContextTxInfo ctx
 
         chkSig :: Bool 
-        chkSig = False
+        chkSig = txSignedBy info $ unpaymentPubKeyHash $ owner p 
 
         chkDeadline :: Bool
         chkDeadline = False
+
+data DeadParams
+instance Scripts.ValidatorTypes DeadParams where 
+    type instance DatumType DeadParams = ()
+    type instance RedeemerType DeadParams = ()
+
+typedValidator :: DeadParams -> Scripts.TypedValidator DeadParams
+typedValidator p = Scripts.mkTypedValidator @DeadParams
+  ($$(PlutusTx.compile [|| mkValidator ||]) `PlutusTx.applyCode` PlutusTx.liftCode p)
+  $$(PlutusTx.compile [|| wrap ||]) where
+    wrap =Scripts.wrapValidator @() @()
+
