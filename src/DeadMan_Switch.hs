@@ -73,3 +73,11 @@ typedValidator p = Scripts.mkTypedValidator @DeadParams
   $$(PlutusTx.compile [|| wrap ||]) where
     wrap =Scripts.wrapValidator @() @()
 
+validator :: DeadParams -> Validator
+validator = Scripts.validatorScript . typedValidator
+
+valHash :: DeadParams -> Ledger.ValidatorHash
+valHash = Scripts.ValidatorHash . typedValidator
+
+scrAddress :: DeadParams -> Ledger.Address
+scrAddress = scriptAdress . validator 
