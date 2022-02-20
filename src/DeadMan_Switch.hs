@@ -81,3 +81,39 @@ valHash = Scripts.ValidatorHash . typedValidator
 
 scrAddress :: DeadParams -> Ledger.Address
 scrAddress = scriptAdress . validator 
+
+data GiveParams = GiveParams
+    { gpBeneficiary :: !PaymentPubKeyHash,
+      gpOwner       :: !paymentPubKeyHash,
+      gpDeadline    :: !POSIXTime,
+      gpAmount      :: !Integer
+    } deriving (Generic, ToJSON, FromJSON, ToSchema)
+
+type DeadSchema = Endpoint "send" GiveParams
+
+send ::  AsContractError e => GiveParams -> Contract w s e ()
+send gp = do
+        let p = DeadParams {
+          beneficiary = gpBeneficiary gp,
+          deadline    = gpDeadline gp}
+         tx = Constraints.mustPayToTheScript () $ Ada.lovelaceValueOf $ gpAmount gp
+    ledgerTx <- submitTxConstraints (typedValidator p) tx
+    void $ awaitTxConfirmed $ getCardanoTxId ledgerTx
+    logInfo @String $ printf "made a gift of %d lovelace to %s with deadline %s"
+        (gpAmount gp)
+        (show $ gpBeneficiary gp)
+        (show $ gpDeadline gp)
+
+
+endpoints :: Contract () DeadSchema Text ()
+endpoints = awaitPromise (give' `select` grab') >> endpoints
+  where
+    give' = endpoint @"send" give
+
+mkSchemaDefinitions ''DeadSchema
+
+mkKnownCurrencies []
+
+-- TODO:
+-- Specify all ada is sent
+-- Figure out last transaction date
